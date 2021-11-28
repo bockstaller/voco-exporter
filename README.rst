@@ -1,7 +1,7 @@
 voco exporter
 ==========================
 
-This is a plugin for `pretix`_. 
+This is a collection of small, purpose built pretix exporters for rovervoco.
 
 Short description
 

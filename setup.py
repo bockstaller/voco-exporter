@@ -28,11 +28,11 @@ cmdclass = {"build": CustomBuild}
 setup(
     name="voco-exporter",
     version=__version__,
-    description="Short description",
+    description="Exporters for roverVOCO",
     long_description=long_description,
     url="github.com/bockstaller/voco-exporter",
     author="Lukas Bockstaller",
-    author_email="lukas.bockstaller@gmail",
+    author_email="lukas.bockstaller@posteo.de",
     license="Apache",
     install_requires=[],
     packages=find_packages(exclude=["tests", "tests.*"]),
