@@ -7,7 +7,7 @@ Short description
 
 Development setup
 -----------------
-
+ 
 1. Make sure that you have a working `pretix development setup`_.
 
 2. Clone this repository.
