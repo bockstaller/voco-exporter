@@ -14,6 +14,7 @@ from pretix.base.models.orders import (
 from pretix.base.models.organizer import Organizer
 from pretix.base.services.invoices import generate_invoice, invoice_qualified
 from decimal import Decimal
+from pprint import pprint
 
 
 class MultiplePaymentsException(Exception):
@@ -71,6 +72,8 @@ class Command(BaseCommand):
 
         o = Organizer.objects.filter(slug__iexact=o_slug).first()
 
+        unhandled = []
+
         with scope(organizer=o):
 
             e: Event = Event.objects.filter(slug__iexact=e_slug).first()
@@ -78,40 +81,47 @@ class Command(BaseCommand):
             o: Order
 
             for o in e.orders.filter(status=Order.STATUS_PAID):
-                print(o.code)
+                try:
+                    print(o.code)
 
-                if options["clean"]:
-                    o.eventpart_set.clear()
+                    if options["clean"]:
+                        o.eventpart_set.clear()
 
-                diocese = (
-                    QuestionAnswer.objects.filter(question__identifier=self.diocese_id)
-                    .filter(orderposition__order=o)
-                    .filter(orderposition__canceled=False)
-                    .get()
-                    .answer
-                )
-                print(diocese)
-                auftakt_id = self.auftakte[diocese]
-                o.eventpart_set.add(auftakt_id)
-
-                project = (
-                    QuestionAnswer.objects.filter(
-                        question__identifier=self.project_mode_id
+                    diocese = (
+                        QuestionAnswer.objects.filter(
+                            question__identifier=self.diocese_id
+                        )
+                        .filter(orderposition__order=o)
+                        .filter(orderposition__canceled=False)
+                        .get()
+                        .answer
                     )
-                    .filter(orderposition__order=o)
-                    .filter(orderposition__canceled=False)
-                    .get()
-                    .answer
-                )
-                print(project)
+                    print(diocese)
+                    auftakt_id = self.auftakte[diocese]
+                    o.eventpart_set.add(auftakt_id)
 
-                if project == "Individualreise":
-                    o.eventpart_set.add(self.projekt_individualreise)
-                elif project == "Blind Booking":
-                    o.eventpart_set.add(self.projekt_blindbooking)
-                else:
-                    o.eventpart_set.add(self.projekt_unbekannt)
+                    project = (
+                        QuestionAnswer.objects.filter(
+                            question__identifier=self.project_mode_id
+                        )
+                        .filter(orderposition__order=o)
+                        .filter(orderposition__canceled=False)
+                        .get()
+                        .answer
+                    )
+                    print(project)
 
-                o.eventpart_set.add(self.abschluss)
+                    if project == "Individualreise":
+                        o.eventpart_set.add(self.projekt_individualreise)
+                    elif project == "Blind Booking":
+                        o.eventpart_set.add(self.projekt_blindbooking)
+                    else:
+                        o.eventpart_set.add(self.projekt_unbekannt)
 
-                o.save()
+                    o.eventpart_set.add(self.abschluss)
+
+                    o.save()
+                except Exception as e:
+                    unhandled.append((o.code, e))
+
+            pprint(unhandled)
