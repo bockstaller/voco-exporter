@@ -63,14 +63,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("organizer_slug", type=str)
         parser.add_argument("event_slug", type=str)
-        parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--clean", action="store_true")
 
     def handle(self, *args, **options):
         o_slug = options["organizer_slug"]
         e_slug = options["event_slug"]
-
-        if dry_run := options["dry_run"]:
-            self.stdout.write(self.style.WARNING("Running Dry Run"))
 
         o = Organizer.objects.filter(slug__iexact=o_slug).first()
 
@@ -81,6 +78,11 @@ class Command(BaseCommand):
             o: Order
 
             for o in e.orders.filter(status=Order.STATUS_PAID):
+                print(o.code)
+
+                if options["clean"]:
+                    o.eventpart_set.clear()
+
                 diocese = (
                     QuestionAnswer.objects.filter(question__identifier=self.diocese_id)
                     .filter(orderposition__order=o)
