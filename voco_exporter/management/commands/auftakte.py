@@ -86,6 +86,7 @@ class Command(BaseCommand):
                 diocese = (
                     QuestionAnswer.objects.filter(question__identifier=self.diocese_id)
                     .filter(orderposition__order=o)
+                    .filter(orderposition__canceled=False)
                     .get()
                     .answer
                 )
@@ -98,6 +99,7 @@ class Command(BaseCommand):
                         question__identifier=self.project_mode_id
                     )
                     .filter(orderposition__order=o)
+                    .filter(orderposition__canceled=False)
                     .get()
                     .answer
                 )
