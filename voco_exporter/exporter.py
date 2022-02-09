@@ -18,12 +18,14 @@ class GroupExporter(ListExporter):
         headers = ["Order Code", "Reiseart", "Bereich", "Auftakt", "Diözese"]
 
         headers.append("Anzahl Proj.")
-        headers.append("Anzahl Proj. TN ü18")
+        headers.append("Anzahl Proj. TN ü27")
+        headers.append("Anzahl Proj. TN u27")
         headers.append("Anzahl Proj. TN u18")
         headers.append("Anzahl Proj. TN u16")
         headers.append("Anzahl Proj. Leiter*innen")
         headers.append("Anzahl Nachz.")
-        headers.append("Anzahl Nachz. TN ü18")
+        headers.append("Anzahl Nachz. TN ü27")
+        headers.append("Anzahl Nachz. TN u27")
         headers.append("Anzahl Nachz. TN u18")
         headers.append("Anzahl Nachz. TN u16")
         headers.append("Anzahl Nachz. Leiter*innen")
@@ -51,8 +53,15 @@ class GroupExporter(ListExporter):
                 .all()
             )
             for o in os:
-                proj, projue18, proju18, proju16, projl = 0, 0, 0, 0, 0
-                nachz, nachzue18, nachzu18, nachzu16, nachzl = 0, 0, 0, 0, 0
+                proj, projue27, proju27, proju18, proju16, projl = 0, 0, 0, 0, 0, 0
+                nachz, nachzue27, nachzu27, nachzu18, nachzu16, nachzl = (
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                )
                 reiseart, bereich, auftakt, dioezese = "", "", "", ""
 
                 for p in o.all_positions.all():
@@ -125,36 +134,39 @@ class GroupExporter(ListExporter):
 
                     else:
                         c = 1
-                        ue18, u16, u18, leader = 0, 0, 0, 0
+                        u16, u18, u27, ue27, leader = 0, 0, 0, 0, 0
 
                         if p.item in leiter:
                             leader = 1
-                        else:
-                            try:
-                                datum = date.fromisoformat(
-                                    p.answers.get(
-                                        question__identifier=geb_date_id
-                                    ).answer
-                                )
-                                age = relativedelta(cut_off_date, datum).years
-                                if age > 18:
-                                    ue18 = 1
-                                elif age < 16:
-                                    u16 = 1
-                                else:
-                                    u18 = 1
-                            except QuestionAnswer.DoesNotExist:
+
+                        try:
+                            datum = date.fromisoformat(
+                                p.answers.get(question__identifier=geb_date_id).answer
+                            )
+                            age = relativedelta(cut_off_date, datum).years
+
+                            if age >= 27:
+                                ue27 = 1
+                            elif age > 18 & age < 27:
+                                u27 = 1
+                            elif age < 16:
+                                u16 = 1
+                            else:
                                 u18 = 1
+                        except QuestionAnswer.DoesNotExist:
+                            u18 = 1
 
                         if p.item in tn:
-                            projue18 += ue18
+                            projue27 += ue27
+                            proju27 += u27
                             proju18 += u18
                             proju16 += u16
                             projl += leader
                             proj += c
 
                         if p.item in nz:
-                            nachzue18 += ue18
+                            nachzue27 += ue27
+                            nachzu27 += u27
                             nachzu18 += u18
                             nachzu16 += u16
                             nachzl += leader
@@ -162,14 +174,14 @@ class GroupExporter(ListExporter):
 
                 assert sum([nachz, proj]) == sum(
                     [
-                        nachzue18,
+                        projue27,
+                        proju27,
                         nachzu18,
                         nachzu16,
-                        nachzl,
-                        projue18,
+                        nachzue27,
+                        nachzu27,
                         proju18,
                         proju16,
-                        projl,
                     ]
                 )
 
@@ -180,12 +192,14 @@ class GroupExporter(ListExporter):
                     auftakt,
                     dioezese,
                     proj,
-                    projue18,
+                    projue27,
+                    proju27,
                     proju18,
                     proju16,
                     projl,
                     nachz,
-                    nachzue18,
+                    nachzue27,
+                    nachzu27,
                     nachzu18,
                     nachzu16,
                     nachzl,
