@@ -1,9 +1,10 @@
 from datetime import date
+from telnetlib import STATUS
 from dateutil.relativedelta import relativedelta
 from django_scopes import scope
-from pretix.base.exporter import ListExporter
+from pretix.base.exporter import ListExporter, MultiSheetListExporter
 from pretix.base.models.items import Item
-from pretix.base.models.orders import Order, QuestionAnswer
+from pretix.base.models.orders import Order, QuestionAnswer, OrderPosition
 from enum import Enum
 
 
@@ -418,3 +419,124 @@ class PostExporter(ListExporter):
                     proj,
                     nachz,
                 ] + list(d.values())
+
+
+class OrderListExporter(MultiSheetListExporter):
+    identifier = "voco-tshirt"
+    verbose_name = "T-Shirt Export"
+
+    @property
+    def sheets(self):
+        return (
+            ("positions", "Positions"),
+            ("adresses", "Adresses"),
+        )
+
+    def iterate_sheet(self, form_data, sheet):
+        if sheet == "positions":
+            return self.iterate_positions(form_data)
+        elif sheet == "adresses":
+            return self.iterate_orders(form_data)
+
+    def iterate_positions(self, form_data: dict):
+
+        headers = ["Schnitt", "Farbe", "Print", "Größe", "Menge", "Ref"]
+
+        yield headers
+
+        ops: OrderPosition
+        ops = (
+            OrderPosition.objects.filter(order__event=self.event)
+            .filter(canceled=False)
+            .all()
+        )
+
+        for op in ops:
+            color = op.item.name
+            design = "Circle"
+            if color == "Staff-Shirt":
+                color = "Schwarz"
+                design = "Staff"
+
+            var = op.variation.value
+            size, t, cut = var.partition("-")
+
+            if cut is None:
+                cut = "unisex"
+
+            row = [cut, color, design, size, "1", op.order.code]
+
+        yield row
+
+    def iterate_orders(self, form_data: dict):
+
+        headers = [
+            "Sendungsreferenz",
+            "Name 1",
+            "Name 2",
+            "Straße",
+            "Hausnummer",
+            "PLZ",
+            "Ort",
+            "Land",
+            "E-Mail-Adresse",
+            "Name 1",
+            "Straße",
+            "Hausnummer",
+            "PLZ",
+            "Ort",
+            "Land",
+            "E-Mail-Adresse",
+            "Empfängerreferenz",
+            "Gewicht",
+        ]
+
+        yield headers
+
+        o: Order
+        for o in self.event.orders.filter(canceled=False).all():
+            ref = o.code
+            absender1 = "Bundesamt Sankt Georg e.V."
+            absender2 = "Marvin Anselm"
+            absender_str = "Martinstraße"
+            absender_nr = "2"
+            absender_plz = "41472"
+            absender_ort = "Neuss (Holzheim)"
+            absender_land = "DE"
+            emailadresse = "rovervoco@dpsg.de"
+            empf1 = o.invoice.invoice_to_name
+            street, sep, no = o.invoice.invoice_to_street.rstrip(" ")
+            empf_str = street
+            empf_no = no
+            empf_plz = o.invoice.invoice_to_zipcode
+            empf_ort = o.invoice.invoice_to_city
+            empf_land = o.invoice.invoice_to_country
+            empf_email = o.email
+            empf_ref = o.code
+            gew = len(o.positions) * 0, 25 + 0, 5
+
+            row = [
+                ref,
+                absender1,
+                absender2,
+                absender_str,
+                absender_nr,
+                absender_plz,
+                absender_ort,
+                absender_land,
+                emailadresse,
+                empf1,
+                empf_str,
+                empf_no,
+                empf_plz,
+                empf_ort,
+                empf_land,
+                empf_email,
+                empf_ref,
+                gew
+            ]
+
+            yield row
+
+    def get_filename(self):
+        return "Tshirt-Orders"

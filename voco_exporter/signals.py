@@ -22,3 +22,10 @@ def register_post_exporter(sender, **kwargs):
     from .exporter import PostExporter
 
     return PostExporter
+
+
+@receiver(register_data_exporters, dispatch_uid="voco_shirtexporter")
+def register_post_exporter(sender, **kwargs):
+    from .exporter import OrderListExporter
+
+    return OrderListExporter
