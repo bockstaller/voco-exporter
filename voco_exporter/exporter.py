@@ -6,6 +6,8 @@ from pretix.base.exporter import ListExporter, MultiSheetListExporter
 from pretix.base.models.items import Item
 from pretix.base.models.orders import Order, QuestionAnswer, OrderPosition
 from enum import Enum
+import re
+from pretix.base.i18n import language
 
 
 class GroupExporter(ListExporter):
@@ -440,103 +442,114 @@ class OrderListExporter(MultiSheetListExporter):
 
     def iterate_positions(self, form_data: dict):
 
-        headers = ["Schnitt", "Farbe", "Print", "Größe", "Menge", "Ref"]
+        with language("de-informal"):
+            headers = ["Schnitt", "Farbe", "Print", "Größe", "Menge", "Ref"]
 
-        yield headers
+            yield headers
 
-        ops: OrderPosition
-        ops = (
-            OrderPosition.objects.filter(order__event=self.event)
-            .filter(canceled=False)
-            .all()
-        )
+            ops: OrderPosition
+            ops = (
+                OrderPosition.objects.filter(order__event=self.event)
+                .filter(canceled=False)
+                .order_by("order", "item")
+                .all()
+            )
 
-        for op in ops:
-            color = op.item.name
-            design = "Circle"
-            if color == "Staff-Shirt":
-                color = "Schwarz"
-                design = "Staff"
+            for op in ops:
+                color = str(op.item.name)
+                design = "Circle"
 
-            var = op.variation.value
-            size, t, cut = var.partition("-")
+                if "Staff" in color:
+                    color = "Schwarz"
+                    design = "Staff"
 
-            if cut is None:
-                cut = "unisex"
+                var = op.variation.value
+                size, t, cut = str(var).partition("-")
 
-            row = [cut, color, design, size, "1", op.order.code]
+                if cut is None:
+                    cut = "unisex"
 
-        yield row
+                row = [cut, color, design, size, "1", op.order.code]
+
+                yield row
 
     def iterate_orders(self, form_data: dict):
-
-        headers = [
-            "Sendungsreferenz",
-            "Name 1",
-            "Name 2",
-            "Straße",
-            "Hausnummer",
-            "PLZ",
-            "Ort",
-            "Land",
-            "E-Mail-Adresse",
-            "Name 1",
-            "Straße",
-            "Hausnummer",
-            "PLZ",
-            "Ort",
-            "Land",
-            "E-Mail-Adresse",
-            "Empfängerreferenz",
-            "Gewicht",
-        ]
-
-        yield headers
-
-        o: Order
-        for o in self.event.orders.filter(canceled=False).all():
-            ref = o.code
-            absender1 = "Bundesamt Sankt Georg e.V."
-            absender2 = "Marvin Anselm"
-            absender_str = "Martinstraße"
-            absender_nr = "2"
-            absender_plz = "41472"
-            absender_ort = "Neuss (Holzheim)"
-            absender_land = "DE"
-            emailadresse = "rovervoco@dpsg.de"
-            empf1 = o.invoice.invoice_to_name
-            street, sep, no = o.invoice.invoice_to_street.rstrip(" ")
-            empf_str = street
-            empf_no = no
-            empf_plz = o.invoice.invoice_to_zipcode
-            empf_ort = o.invoice.invoice_to_city
-            empf_land = o.invoice.invoice_to_country
-            empf_email = o.email
-            empf_ref = o.code
-            gew = len(o.positions) * 0, 25 + 0, 5
-
-            row = [
-                ref,
-                absender1,
-                absender2,
-                absender_str,
-                absender_nr,
-                absender_plz,
-                absender_ort,
-                absender_land,
-                emailadresse,
-                empf1,
-                empf_str,
-                empf_no,
-                empf_plz,
-                empf_ort,
-                empf_land,
-                empf_email,
-                empf_ref,
-                gew
+        with language("de-informal"):
+            headers = [
+                "Sendungsreferenz",
+                "Name 1",
+                "Name 2",
+                "Straße",
+                "Hausnummer",
+                "PLZ",
+                "Ort",
+                "Land",
+                "E-Mail-Adresse",
+                "Name 1",
+                "Straße",
+                "Hausnummer",
+                "PLZ",
+                "Ort",
+                "Land",
+                "E-Mail-Adresse",
+                "Empfängerreferenz",
+                "Gewicht",
             ]
 
-            yield row
+            yield headers
+
+            o: Order
+            for o in self.event.orders.exclude(status="c").all():
+                ref = o.code
+                absender1 = "Bundesamt Sankt Georg e.V."
+                absender2 = "Marvin Anselm"
+                absender_str = "Martinstraße"
+                absender_nr = "2"
+                absender_plz = "41472"
+                absender_ort = "Neuss (Holzheim)"
+                absender_land = "DE"
+                emailadresse = "rovervoco@dpsg.de"
+                inv = o.invoices.latest("invoice_no")
+
+                empf1 = inv.invoice_to_name
+                street_and_no = inv.invoice_to_street
+
+                m = re.match("(.*?)\s*(\d+\s*.*)", street_and_no)
+                if m is not None:
+                    empf_str = m.group(1)
+                    empf_no = m.group(2)
+                else:
+                    empf_str = street_and_no
+                    empf_no = " "
+                empf_plz = inv.invoice_to_zipcode
+                empf_ort = inv.invoice_to_city
+                empf_land = inv.invoice_to_country
+                empf_email = o.email
+                empf_ref = o.code
+                gew = len(o.positions.all()) * 0.25 + 0.5
+
+                row = [
+                    ref,
+                    absender1,
+                    absender2,
+                    absender_str,
+                    absender_nr,
+                    absender_plz,
+                    absender_ort,
+                    absender_land,
+                    emailadresse,
+                    empf1,
+                    empf_str,
+                    empf_no,
+                    empf_plz,
+                    empf_ort,
+                    empf_land,
+                    empf_email,
+                    empf_ref,
+                    gew,
+                ]
+
+                yield row
 
     def get_filename(self):
         return "Tshirt-Orders"
