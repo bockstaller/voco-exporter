@@ -41,12 +41,14 @@ class GroupExporter(ListExporter):
         nz = Item.objects.filter(id__in=[45, 51, 53])
         leiter = Item.objects.filter(id__in=[27, 31, 51, 53])
 
+        all_p = Item.objects.filter(id__in=[27, 28, 31, 45, 51, 53])
+
         dioezese_id = "C3YKTN77"
         reiseart_id = "TRWSCC8E"
         bereich_id = "AEYPGRNG"
         geb_date_id = "EQ3HTNKC"
 
-        cut_off_date = date(year=2021, month=4, day=10)
+        cut_off_date = date(year=2022, month=4, day=10)
 
         with scope(event=self.event):
 
@@ -135,7 +137,7 @@ class GroupExporter(ListExporter):
                     elif (p.item in gruppeninfo_nachz) & (reiseart == ""):
                         reiseart = "Nachzügler"
 
-                    else:
+                    elif p.item in all_p:
                         c = 1
                         u16, u18, u27, ue27, leader = 0, 0, 0, 0, 0
 
@@ -148,14 +150,15 @@ class GroupExporter(ListExporter):
                             )
                             age = relativedelta(cut_off_date, datum).years
 
-                            if age >= 27:
-                                ue27 = 1
-                            elif age > 18 & age < 27:
-                                u27 = 1
-                            elif age < 16:
+                            if age < 16:
                                 u16 = 1
-                            else:
+                            elif age < 18:
                                 u18 = 1
+                            elif age < 27:
+                                u27 = 1
+                            else:
+                                ue27 = 1
+
                         except QuestionAnswer.DoesNotExist:
                             u18 = 1
 
